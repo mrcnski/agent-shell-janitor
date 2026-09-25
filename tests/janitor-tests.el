@@ -132,8 +132,9 @@ NAMES are the buffer names each slot's saved layout shows."
   (asj-test-with-shells ((orphan "orphan" 60)
                          (shown "shown" 60))
     (save-window-excursion
-      ;; ibuffer takes over the selected window, so show SHOWN in another.
-      (set-window-buffer (split-window) shown)
+      ;; Listing from SHOWN's own window must not count SHOWN as orphaned
+      ;; once ibuffer replaces it there.
+      (set-window-buffer (selected-window) shown)
       (agent-shell-janitor-list)
       (unwind-protect
           (with-current-buffer "*Agent Shells*"

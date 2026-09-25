@@ -123,13 +123,17 @@ Reads agent-shell's internal state; there is no public accessor."
 The Idle column is time since the shell last changed.  WS lists the
 eyebrowse workspaces that show it."
   (interactive)
-  (let ((width (apply #'max 16 (mapcar (lambda (buffer)
-                                         (length (buffer-name buffer)))
-                                       (agent-shell-janitor--shells)))))
+  (let* ((shells (agent-shell-janitor--shells))
+         (width (apply #'max 16 (mapcar (lambda (buffer)
+                                          (length (buffer-name buffer)))
+                                        shells)))
+         ;; Decided before ibuffer takes over the selected window, which may
+         ;; be showing a shell.
+         (orphans (seq-filter #'agent-shell-janitor-orphaned-p shells)))
     (ibuffer nil "*Agent Shells*" '((derived-mode . agent-shell-mode))
              nil nil nil
              (list (cl-subst width :width agent-shell-janitor-ibuffer-format)))
-    (ibuffer-mark-on-buffer #'agent-shell-janitor-orphaned-p
+    (ibuffer-mark-on-buffer (lambda (buffer) (memq buffer orphans))
                             ibuffer-deletion-char)))
 
 ;;;###autoload
