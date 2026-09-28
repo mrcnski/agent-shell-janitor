@@ -33,25 +33,29 @@ Each binding is (VAR NAME [IDLE-SECONDS])."
            (when (buffer-live-p buffer)
              (kill-buffer buffer)))))))
 
-(defmacro asj-test-with-workspaces (slots &rest body)
-  "Run BODY with eyebrowse stubbed to have SLOTS, an alist (SLOT . NAMES).
-NAMES are the buffer names each slot's saved layout shows."
-  (declare (indent 1) (debug t))
+(defmacro asj-test-with-eyebrowse (&rest body)
+  "Run BODY with the `eyebrowse' feature provided, but nothing defined."
+  (declare (indent 0) (debug t))
   `(let ((saved-features features))
      (provide 'eyebrowse)
-     (cl-letf (((symbol-function 'eyebrowse--get)
-                (lambda (_type &optional _frame)
-                  (mapcar (lambda (slot)
-                            (list (car slot)
-                                  (mapcar (lambda (name) (list 'buffer name))
-                                          (cdr slot))))
-                          ,slots)))
-               ((symbol-function 'eyebrowse--walk-window-config)
-                (lambda (window-config function)
-                  (mapc function (cadr window-config)))))
-       (unwind-protect
-           (progn ,@body)
-         (setq features saved-features)))))
+     (unwind-protect
+         (progn ,@body)
+       (setq features saved-features))))
+
+(defmacro asj-test-with-workspaces (slots &rest body)
+  "Run BODY with eyebrowse stubbed to have SLOTS, an alist (SLOT . NAMES).
+NAMES are the buffer names each slot's layout shows, on every frame."
+  (declare (indent 1) (debug t))
+  `(asj-test-with-eyebrowse
+     (cl-letf (((symbol-function 'eyebrowse-buffer-slots)
+                (lambda (buffer &optional _frame)
+                  (sort (mapcar #'car
+                                (seq-filter (lambda (slot)
+                                              (member (buffer-name buffer)
+                                                      (cdr slot)))
+                                            ,slots))
+                        #'<))))
+       ,@body)))
 
 (ert-deftest asj-age-string ()
   (let ((now (current-time)))
@@ -98,6 +102,23 @@ NAMES are the buffer names each slot's saved layout shows."
       (should (equal (agent-shell-janitor-workspace-slots shell) '(1 3)))
       (should (equal (agent-shell-janitor-workspace-slots other) '(1)))
       (should-not (agent-shell-janitor-orphaned-p shell)))))
+
+(ert-deftest asj-workspace-slots-merge-frames ()
+  (asj-test-with-shells ((shell "shell" 60))
+    (asj-test-with-workspaces '((3 "shell") (1 "shell"))
+      (cl-letf (((symbol-function 'frame-list) (lambda () '(one two))))
+        (should (equal (agent-shell-janitor-workspace-slots shell) '(1 3)))))))
+
+(ert-deftest asj-eyebrowse-without-buffer-slots-kills-nothing ()
+  (let ((agent-shell-janitor-stale-age 3600)
+        (inhibit-message t))
+    (asj-test-with-shells ((old "old" 7200))
+      (asj-test-with-eyebrowse
+        (should-not (fboundp 'eyebrowse-buffer-slots))
+        (should-not (agent-shell-janitor-workspace-slots old))
+        (should-not (agent-shell-janitor-orphaned-p old))
+        (agent-shell-janitor-kill-stale)
+        (should (buffer-live-p old))))))
 
 (ert-deftest asj-stale-p ()
   (let ((agent-shell-janitor-stale-age 3600))

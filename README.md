@@ -38,8 +38,14 @@ Not on MELPA, but you can do:
 
 ## Compatibility
 
-Reads agent-shell's private `:last-activity-time` state, and eyebrowse's
-private window-config helpers.  Upstream changes may require updates here.
+Reads agent-shell's private `:last-activity-time` state.  Upstream changes may
+require updates here.
+
+Workspace awareness needs `eyebrowse-buffer-slots`, which is only in the
+[eyebrowse fork](https://github.com/mrcnski/eyebrowse).  With an eyebrowse
+that lacks it, a shell shown only in another workspace can't be told apart
+from an orphan, so no shell is marked or killed and the WS column shows `?`.
+Without eyebrowse at all, only live windows count.
 
 ## Testing
 

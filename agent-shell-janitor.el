@@ -16,6 +16,10 @@
 ;; shows.  Idle time comes from agent-shell's last-activity time rather than
 ;; `buffer-display-time', which eyebrowse resets for every buffer in a
 ;; workspace on each switch.
+;;
+;; Workspace awareness needs `eyebrowse-buffer-slots', from the fork at
+;; https://github.com/mrcnski/eyebrowse.  With an eyebrowse that lacks it, no
+;; shell counts as orphaned, so none are marked or killed.
 
 ;;; Code:
 
@@ -29,8 +33,7 @@
 (defvar agent-shell--state)
 (defvar shell-maker-prompt-before-killing-buffer)
 (declare-function shell-maker-busy "shell-maker")
-(declare-function eyebrowse--get "eyebrowse")
-(declare-function eyebrowse--walk-window-config "eyebrowse")
+(declare-function eyebrowse-buffer-slots "eyebrowse")
 
 (defgroup agent-shell-janitor nil
   "List and clean up idle agent shells."
@@ -79,20 +82,19 @@ Reads agent-shell's internal state; there is no public accessor."
   (map-elt (buffer-local-value 'agent-shell--state buffer)
            :last-activity-time))
 
+(defun agent-shell-janitor--workspaces-known-p ()
+  "Non-nil unless eyebrowse is loaded without `eyebrowse-buffer-slots'."
+  (or (not (featurep 'eyebrowse))
+      (fboundp 'eyebrowse-buffer-slots)))
+
 (defun agent-shell-janitor-workspace-slots (buffer)
-  "Eyebrowse slots, on any frame, whose saved layout shows BUFFER."
-  (let ((name (buffer-name buffer))
-        slots)
-    (when (featurep 'eyebrowse)
-      (dolist (frame (frame-list))
-        (dolist (window-config (eyebrowse--get 'window-configs frame))
-          (eyebrowse--walk-window-config
-           window-config
-           (lambda (item)
-             (when (and (eq (car item) 'buffer)
-                        (equal (cadr item) name))
-               (cl-pushnew (car window-config) slots)))))))
-    (sort slots #'<)))
+  "Eyebrowse slots, on any frame, whose layout shows BUFFER."
+  (when (and (featurep 'eyebrowse)
+             (fboundp 'eyebrowse-buffer-slots))
+    (sort (seq-uniq (mapcan (lambda (frame)
+                              (eyebrowse-buffer-slots buffer frame))
+                            (frame-list)))
+          #'<)))
 
 (defun agent-shell-janitor-orphaned-p (buffer)
   "Non-nil if BUFFER is an idle agent shell no window or workspace shows."
@@ -100,6 +102,7 @@ Reads agent-shell's internal state; there is no public accessor."
     (and (derived-mode-p 'agent-shell-mode)
          (not (shell-maker-busy))
          (not (get-buffer-window buffer t))
+         (agent-shell-janitor--workspaces-known-p)
          (null (agent-shell-janitor-workspace-slots buffer)))))
 
 (defun agent-shell-janitor-stale-p (buffer)
@@ -114,8 +117,10 @@ Reads agent-shell's internal state; there is no public accessor."
 
 (define-ibuffer-column agent-shell-janitor-workspaces
   (:name "WS" :inline t)
-  (mapconcat #'number-to-string
-             (agent-shell-janitor-workspace-slots buffer) ","))
+  (if (agent-shell-janitor--workspaces-known-p)
+      (mapconcat #'number-to-string
+                 (agent-shell-janitor-workspace-slots buffer) ",")
+    "?"))
 
 ;;;###autoload
 (defun agent-shell-janitor-list ()
