@@ -11,10 +11,6 @@ List and clean up idle agent-shell buffers.
 - **Kill** orphans that have been idle for a day, e.g. daily from
   `midnight-hook`.
 
-Idle time comes from agent-shell's last-activity time rather than
-`buffer-display-time`, which eyebrowse resets for every buffer in a workspace
-on each switch.
-
 ## Usage
 
 - `agent-shell-janitor-list`: list shells, with orphans marked. `x` kills them.
@@ -38,8 +34,7 @@ Not on MELPA, but you can do:
 
 ## Compatibility
 
-Reads agent-shell's private `:last-activity-time` state.  Upstream changes may
-require updates here.
+Needs agent-shell 0.82.2 or later.
 
 Workspace awareness needs `eyebrowse-buffer-slots`, which is only in the
 [eyebrowse fork](https://github.com/mrcnski/eyebrowse).  With an eyebrowse

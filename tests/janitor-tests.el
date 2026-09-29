@@ -6,6 +6,13 @@
 (defvar asj-test-busy nil
   "Shells reported busy by the stubbed `shell-maker-busy'.")
 
+(defvar-local agent-shell--state nil)
+
+(cl-defun agent-shell-last-activity-time (&key shell-buffer)
+  "Stub of agent-shell's accessor, reading SHELL-BUFFER's state."
+  (alist-get :last-activity-time
+             (buffer-local-value 'agent-shell--state shell-buffer)))
+
 (defun asj-test-make-shell (name &optional idle-seconds)
   "Return a fake agent shell NAME last active IDLE-SECONDS ago.
 IDLE-SECONDS nil means the shell has no recorded activity."

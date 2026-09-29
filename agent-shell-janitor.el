@@ -1,7 +1,7 @@
 ;;; agent-shell-janitor.el --- List and clean up idle agent shells -*- lexical-binding: t; -*-
 
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1") (agent-shell "0.76.1"))
+;; Package-Requires: ((emacs "29.1") (agent-shell "0.82.2"))
 ;; Keywords: tools, convenience
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -26,12 +26,11 @@
 (require 'ibuffer)
 (require 'ibuf-ext)
 (require 'ibuf-macs)
-(require 'map)
 (require 'seq)
 (require 'cl-lib)
 
-(defvar agent-shell--state)
 (defvar shell-maker-prompt-before-killing-buffer)
+(declare-function agent-shell-last-activity-time "agent-shell")
 (declare-function shell-maker-busy "shell-maker")
 (declare-function eyebrowse-buffer-slots "eyebrowse")
 
@@ -77,10 +76,8 @@ TIME nil gives \"\".  NOW defaults to the current time."
             (t (format "%dw" (floor days 7)))))))
 
 (defun agent-shell-janitor-last-activity (buffer)
-  "Time of the last prompt or agent message in shell BUFFER, or nil.
-Reads agent-shell's internal state; there is no public accessor."
-  (map-elt (buffer-local-value 'agent-shell--state buffer)
-           :last-activity-time))
+  "Time of the last prompt or agent message in shell BUFFER, or nil."
+  (agent-shell-last-activity-time :shell-buffer buffer))
 
 (defun agent-shell-janitor--workspaces-known-p ()
   "Non-nil unless eyebrowse is loaded without `eyebrowse-buffer-slots'."
